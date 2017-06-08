@@ -84,7 +84,7 @@ class poloniex {
 	 ************************************************************/ 
 
 	/*
-	 *  Functions for account info
+	 *  Functions for account info (balances/history/orders/etc.):
 	 */
 	public function get_balances() {
 		return $this->query( 
