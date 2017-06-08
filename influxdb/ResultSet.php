@@ -1,10 +1,14 @@
 <?php
+
+// Custom result set object for returning query results
+
 require 'Result.php';
 
 class ResultSet {
-    private $columns;
-    private $database;
-    private $results;
+
+    private $columns;           // Array of column names
+    private $database;          // String database name
+    private $results;           // Array of Result objects
     
     // JSON array returned from InfluxDB query
     public function __construct($json_array) {
@@ -12,9 +16,11 @@ class ResultSet {
         $this->setColumns($json_array);
         $this->setResults($json_array);
     }
+
     
     // Set column names as an array
     public function setColumns($cols) {
+
         if (isset($cols) && isset($cols['results'][0]['series'][0]['columns'])) {
             $this->columns = $cols['results'][0]['series'][0]['columns'];
         }
@@ -23,8 +29,10 @@ class ResultSet {
         }
     }
 
+
     // Set name of database
     public function setDatabase($db) {
+
         if (isset($db) && isset($db['results'][0]['series']['name'])) {
             $this->database = $db['results'][0]['series'][0]['name'];
         }
@@ -33,16 +41,17 @@ class ResultSet {
         }
     }
 
+
     // Create array of Result objects
     public function setResults($values) {
+
         $arr = array();
 
         if (isset($values) && isset($values['results'][0]['series'][0]['values'])) {
-            //$this->results = $values['results'][0]['series'][0]['values'];
-
             $json = $values['results'][0]['series'][0]['values'];
+            
+            // Combine column names as keys for array to create result objects
             foreach ($json as $row) {
-                // Combine column names w/ 
                 $comb = array_combine($this->getColumns(), $row);
                 $arr[] = new Result($comb);
             }
@@ -51,6 +60,8 @@ class ResultSet {
         $this->results = $arr;
     }
     
+
+    // Getter functions
     public function getDatabase() {
         return $this->database;
     }

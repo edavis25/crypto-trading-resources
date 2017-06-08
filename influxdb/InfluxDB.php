@@ -1,61 +1,57 @@
 <?php
 
+// Class for interacting with the Influx database 
+
 require_once 'CURL.php';
 require_once 'ResultSet.php';
 
 class InfluxDB extends CURL {
     
+    // Default port = 8086
     public function __construct($db_name, $url, $port = '8086') {
         parent::__construct($db_name, $url, $port);
     }
 
+
+    // Returns query results in raw JSON format (InfluxDB default)
     public function query_raw($query) {
         return $this->get($query);
     }
     
-    public function query($query, $precision = 'ms') {
+
+    // Returns query results as a ResultSet object
+    public function query($query, $precision = 'ns') {
         return new ResultSet($this->get($query, $precision));
     }
     
+
+    // Get database users helper function
     public function getUsers() {
         $query = "SHOW USERS";
         return $this->query($query);
     }
     
-    public function getFirstRecord($measurement) {
+
+    // Get first record for measurement helper function 
+    public function getFirstRecord($measurement, $precision = 'ns') {
         $query = "SELECT * FROM $measurement ORDER BY time ASC LIMIT 1";
-        return $this->query($query);
+        return $this->query($query, $precision);
     }
 
-    public function getLastRecord($measurement, $precision = 'rfc3339') {
+
+    // Get last record for a measurment helper function
+    public function getLastRecord($measurement, $precision = 'ns') {
         $query = "SELECT * FROM $measurement ORDER BY time DESC LIMIT 1";
         return $this->query($query, $precision);
     }
 
-    public function insert($data, $precision = 'ns') {
-        $date = new DateTime();
-        $now = $date->getTimestamp();
-        $now1 = $now + 1;
-        //$data = "poloniex,pair=doge/btc high=100,low=99 $now\ntimepoloniex,pair=doge/btc high=90,low=89 $now\npoloniex,pair=doge/btc high=80,low=79 $now";
-        //$data = array();
-        //$data[] = "poloniex,pair=doge/btc high=100,low=99 $now";
-        //$data = "poloniex,pair=doge/btc high=1,low=2 $now\npoloniex,pair=doge/btc high=7,low=8 $now1";
-        
+
+    // Insert an array of data into database (each item in array = new record/row)
+    // NOTE: Very large arrays can quickly exceed default memory limits
+    public function insert($data = array(), $precision = 'ns') {
         $str = implode("\n", $data);
         $this->post($str, $precision);
     }
     
-    
-
 
 }
-
-
-/* public function query($query, $raw_json = false) {
-    if ($raw_json) {
-        return $this->get($query);
-    }
-    else {
-        return new ResultSet($this->get($query));
-    }
-}*/
