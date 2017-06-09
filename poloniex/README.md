@@ -6,7 +6,7 @@ The only dependencies for this class involve creating private and secret API key
 ### Credits:
 This is an adapted version of Poloniex's recommended PHP wrapper class created by Compcentral - [link here](https://pastebin.com/iuezwGRZ)
 ### Revised Version Author Notes:
-As noted above, the original author (Compcentral) created the foundation and groundwork for this code. However, Compcentral's version did not include all of the functionality provided by the Poloniex API. Most notably, the functionalities for margin trading, lending, and account balance/address information was not included. I simply expanded upon Compcentral's work with additional functions to incorporate more of the functionality provided by the Poloniex API (a list of my additions/edits can be found as a comment at the top of the class file).
+As noted above, the original author (Compcentral) created the foundation and groundwork for this code. However, Compcentral's version did not include all of the functionality provided by the Poloniex API. Most notably, the functionalities for margin trading, lending, and account balance/address information were not included. I simply expanded upon Compcentral's work with additional functions to incorporate more of the functionality provided by the Poloniex API (a list of my additions/edits can be found as a comment at the top of the class file).
 
 
 The full documentation for the API can be found [here](https://poloniex.com/support/api/)
