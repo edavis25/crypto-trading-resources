@@ -30,7 +30,31 @@ class InfluxDB extends CURL {
         $query = "SHOW USERS";
         return $this->query($query);
     }
+
+    // Return measurement names as plain array
+    public function getMeasurements() {
+        $query = "SHOW MEASUREMENTS";
+        $result = $this->query($query)->getResults();
+
+        // Build return array
+        $arr = array();
+        foreach ($result as $row) {
+            $arr[] = $row->data['name'];
+        }
+        return $arr;
+    }
     
+    public function getTagValues($key) {
+        $query = "SHOW TAG VALUES WITH KEY = $key";
+        $result = $this->query($query)->getResults();
+
+        // Build return array
+        $arr = array();
+        foreach ($result as $row) {
+            $arr[] = $row->data['value'];
+        }
+        return $arr;
+    }
 
     // Get first record for measurement helper function 
     public function getFirstRecord($measurement, $precision = 'ns') {
