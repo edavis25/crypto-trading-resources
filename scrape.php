@@ -99,8 +99,6 @@ function format_num($num) {
 	return number_format($num, 8, '.', '');
 }
 
-
-
 function build_insert_string($pair, $row) {
 	// Format string w/ Influx line protocol
 	$str = 'poloniex,';
@@ -116,7 +114,6 @@ function build_insert_string($pair, $row) {
 
 	return $str;
 }
-
 
 function build_insert_string_OLD($pair, $row) {
 	// Format string w/ Influx line protocol

@@ -45,9 +45,18 @@ class Bittrex {
 		return array();		// Return empty array if pair not found
 	}
 
+	public function get_trading_pairs() { 
+		$json = $this->get_markets('all');
+		$data = array();
+		foreach ($json as $row) {
+			$data[] = $row['BaseCurrency'] . '_' . $row['MarketCurrency'];
+		}
+		return $data;
+	}
+
 
 	// Get current ticker info for given pair
-	public function get_ticker($pair) {
+	public function get_single_ticker($pair) {
 		$pair = $this->format_pair($pair);
 
 		$url = $this->public_url . 'getticker?market=' . $pair;
@@ -73,6 +82,17 @@ class Bittrex {
 		}
 
 		return array();		// Return empty array if pair not found
+	}
+
+	public function get_formatted_market_summary() {
+		$json = $this->get_market_summary();
+		$data = array();
+		foreach ($json as $row) {
+			$key = str_replace('-', '_', $row['MarketName']);
+			unset($row['MarketName']);
+			$data[$key] = $row;
+		}
+		return $data;
 	}
 
 
