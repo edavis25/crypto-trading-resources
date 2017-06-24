@@ -43,19 +43,6 @@ foreach ($common_pairs as $pair) {
 echo '</ul>';
 die;
 
-/*
-//var_dump($btx_ticker);
-echo number_format($btx_ticker['Ask'], 8) . "<br>";
-echo number_format($btx_ticker['Bid'], 8);
-
-//$ask = number_format($btx_ticker['Ask'], 8);
-echo "<br><br>";
-
-$polo_ticker = $polo->get_ticker('btc_doge');
-echo $polo_ticker['lowestAsk']  . "<br>";
-echo $polo_ticker['highestBid'];
-*/
-
 
 function percent_diff($num1, $num2) {
 	$diff = (($num1 - $num2) / (($num1 + $num2) / 2)) * 100;
