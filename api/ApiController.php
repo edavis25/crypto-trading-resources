@@ -15,10 +15,8 @@ class ApiController extends Controller {
 	// Max limit for number of query results
 	private $MAX_QUERY_LIMIT = 5000;
 	// Min time period for queries
-	//private $MIN_TIME_PERIOD = 300; 		// 300 seconds = 5 minutes
 	private $MIN_TIME_PERIOD = 5; // Minutes
 	// Default time period for queries
-	//private $DEFAULT_TIME_PERIOD = 900;	// 900 seconds = 15 minutes
 	private $DEFAULT_TIME_PERIOD = 5; // Minutes
 	
 	private $db;
@@ -27,28 +25,19 @@ class ApiController extends Controller {
 		$this->db = new InfluxDB('crypto', 'http://192.168.0.101');	
 	}
 
+
+	// API call to retrieve history given a specific starting timestamp
 	public function history($pair) {
 
 		try {
+			// Validate pair & build query
 			$pair = $this->validate_pair($pair);
 			$sql = $this->build_history_query($pair);
 
-			//$json = $db->query_raw($sql, 's');
-			$json = $this->db->query($sql, 's');
-			//$json = json_encode($json->getResults(), JSON_PRETTY_PRINT );
-			
-			$arr = array();
-			foreach ($json->getResults() as $row) {
-				$row->data['high']  = $this->format_num($row->data['high']);
-				$row->data['low']  = $this->format_num($row->data['low']);
-				$row->data['quote_volume']  = $this->format_num($row->data['quote_volume']);
-				$row->data['volume']  = $this->format_num($row->data['volume']);
-				$row->data['weighted_average']  = $this->format_num($row->data['weighted_average']);
-				$arr[] = $row->data;
-			}
-
-			return response()->json($arr);
-
+			// Run query
+			$results = $this->db->query($sql, 's');
+			// Format results and return json response
+			return response()->json($this->format_json_array($results->getResults()));
 		}
 		catch (Exception $ex) {
 			return response()->json(array('error' => $ex->getMessage()));
@@ -56,7 +45,25 @@ class ApiController extends Controller {
 
 	}
 
+	// API call to retrieve recent data from backdate until now
+	public function recent($pair) {
+		
+		try {
+			// Validate pair & build query
+			$pair = $this->validate_pair($pair);
+			$sql = $this->build_recent_query($pair);
 
+			// Run query
+			$results = $this->db->query($sql, 's');
+			// Format results and return json response
+			return response()->json($this->format_json_array($results->getResults()));
+		}
+		catch (Exception $ex) {
+			return response()->json(array('error' => $ex->getMessage()));
+		}
+	}
+
+	// Build query for "history" API call
 	private function build_history_query($pair) {
 
 		$start = Input::get('start');
@@ -70,8 +77,56 @@ class ApiController extends Controller {
 		$limit = Input::get('limit');
 		$limit = $this->validate_limit($limit);
 
+		// Begin building query
+		$sql = $this->build_base_select($pair, $period);
+
+		// Set start time if given or default for last 30 days
+		if ($start) {
+			$sql .= "AND time >= {$start}s AND time <= now() ";
+		}
+		else {
+			$sql .= "AND time >= now() - 14d AND time <= now() ";
+		}
+
+		// Set group by time period bucket (if not min period)
+		$sql .= ($period == $this->MIN_TIME_PERIOD) ? '' : "GROUP BY time({$period}m) ";
+
+		$sql .= "LIMIT $limit";
+
+		return $sql;
+	}
+
+
+	// Build query for the "recent" history API call	
+	private function build_recent_query($pair) {
+		// Get and validate time period
+		$period = Input::get('period');
+		$period = $this->validate_period($period);
+
+		// Get and validate limit
+		$limit = Input::get('limit');
+		$limit = $this->validate_limit($limit);
+
+		// Format backdate string
+		$backdate = $this->format_backdate();
+
+		$sql = $this->build_base_select($pair, $period);
+		$sql .= "AND time >= now() - " . $backdate . " AND time <= now() ";
+
+		// Set group by time period bucket (if not min period)
+		$sql .= ($period == $this->MIN_TIME_PERIOD) ? '' : "GROUP BY time({$period}m) ";
+
+		$sql .= "ORDER BY time DESC ";
+		$sql .= "LIMIT " . $limit;
+		
+		return $sql;
+	}
+
+
+	// Build the base for a standard SELECT * query 
+	private function build_base_select($pair, $period) {
 		// If min time period is selected, don't aggregate query and simply
-		// run standard query as items are in DB (this is faster and avoids)
+		// run standard query as items are in DB as this is faster and avoids
 		// bug of first and last results having null values
 		if ($period == $this->MIN_TIME_PERIOD) {
 			$sql = "SELECT open, close, high, low, quote_volume, volume, weighted_average ";
@@ -89,30 +144,11 @@ class ApiController extends Controller {
 			$sql .= "FROM poloniex ";
 			$sql .= "WHERE pair='$pair' ";
 		}
-
-		// Set start time if given or default for last 30 days
-		if ($start) {
-			$sql .= "AND time >= {$start}s AND time <= now() ";
-		}
-		else {
-			$sql .= "AND time >= now() - 14d AND time <= now() ";
-		}
-
-		// Set group by bucket (if not min period)
-		$sql .= ($period == $this->MIN_TIME_PERIOD) ? '' : "GROUP BY time({$period}m) ";
-
-		$sql .= "LIMIT $limit";
-
 		return $sql;
 	}
 
-	private function validate_db() {
-		if (!$this->db) {
-			throw new Exception('Could not connect to database');
-		}
-		return $this->db;
-	}
 
+	// Validate pair is correct format and also exists in the database
 	private function validate_pair($pair) {
 		// Get trading pair & check if valid
 		$pair = strtolower($pair);
@@ -123,6 +159,8 @@ class ApiController extends Controller {
 		return $pair;
 	}
 
+
+	// Validate the start date as valid UNIX timestamp integer
 	private function validate_date($start) {
 		if ($start && !filter_var($start, FILTER_VALIDATE_INT)) {
   			throw new Exception('Invalid start time. Use only integers for UNIX timestamp');
@@ -131,9 +169,10 @@ class ApiController extends Controller {
 		return $start;
 	}
 
+
+	// Validate time period as integer & enforce min time period (or set default)
 	private function validate_period($period) {
 		if ($period && !filter_var($period, FILTER_VALIDATE_INT)) {
-  			//return (response()->json(array('error' => 'Invalid time period')));
   			throw new Exception('Invalid time period. Use only integer values representing period in minutes');
 		}
 
@@ -147,15 +186,12 @@ class ApiController extends Controller {
 		}
 
 		return $period;
-
-		// Return period in minutes (60 = 1 min)
-		return floor($period / 60);
 	}
 
 
+	// Validate results limit as integer & enforce max results
 	private function validate_limit($limit) {
 		if ($limit && !filter_var($limit, FILTER_VALIDATE_INT)) {
-  			//return (response()->json(array('error' => 'Invalid time period')));
   			throw new Exception('Invalid limit. Use only integer values representing limit for number of results');
 		}
 
@@ -168,41 +204,44 @@ class ApiController extends Controller {
 	}
 
 
+	// Format backdate used in recent query for now() - {backdate}
+	// Ex: now() - 4d2h42m
+	private function format_backdate() {
+		$days = (int)Input::get('days');
+		$hours = (int)Input::get('hours');
+		$minutes = (int)Input::get('minutes');
+
+		$str = '';
+		if ($days) {
+			$str .= $days . 'd';
+		}
+		if ($hours) {
+			$str .= $hours . 'h';
+		}
+		if ($minutes) {
+			$str .= $minutes . 'm';
+		}
+		return $str;
+	}
+
+
+	// Format results to get formatted array for JSON response
+	private function format_json_array($query_results) {
+		$arr = array();
+		foreach ($query_results as $row) {
+			$row->data['high']  = $this->format_num($row->data['high']);
+			$row->data['low']  = $this->format_num($row->data['low']);
+			$row->data['quote_volume']  = $this->format_num($row->data['quote_volume']);
+			$row->data['volume']  = $this->format_num($row->data['volume']);
+			$row->data['weighted_average']  = $this->format_num($row->data['weighted_average']);
+			$arr[] = $row->data;
+		}
+		return $arr;
+	}
+
+
+	// Format num to 8 decimals w/ no commma separators (standard crypto format)
 	private function format_num($num) {
-        // 8 decimals w/ no commma separators
         return (float)number_format($num, 8, '.', '');
     }
 }
-
-
-
-// Get start date
-		/*
-		$start = Input::get('start');
-		
-		// Get time period
-		$period = Input::get('period');
-		$period = $this->validate_period($period);
-
-		// Get results limit
-		$limit = Input::get('limit');
-		$limit = $this->validate_limit($limit);
-		*/
-
-
-		// TODO: Check valid dates
-
-		// Build query
-		//$sql = "SELECT * FROM poloniex WHERE pair='$pair' AND time >= ($start * {$this->NANOSECOND_MULT}) LIMIT $limit";
-		/*
-		$sql = "SELECT * FROM poloniex WHERE pair='$pair' ";
-		if ($start) {
-			$sql .= "AND time >= ($start * {$this->NANOSECOND_MULT}) ";
-		}
-		$sql .= "LIMIT $limit";
-		*/
-
-		// TEST
-		//$sql = "SELECT MEAN(close) AS close, MEAN(high) AS high FROM poloniex WHERE pair='btc_doge' AND time >= 1497502500s AND time < now() GROUP BY TIME(15m)";
-
-		//$sql = "SELECT pair AS pair, ";
