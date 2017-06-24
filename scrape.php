@@ -114,20 +114,3 @@ function build_insert_string($pair, $row) {
 
 	return $str;
 }
-
-function build_insert_string_OLD($pair, $row) {
-	// Format string w/ Influx line protocol
-	$str = strtolower($pair) . " ";
-	$str .= "high=" . format_num($row['high']) . ',';
-	$str .= "low=" . format_num($row['low']) . ',';
-	$str .= "open=" . format_num($row['open']) . ',';
-	$str .= "close=" . format_num($row['close']) . ',';
-	$str .= "volume=" . format_num($row['volume']) . ',';
-	$str .= "quote_volume=" . format_num($row['quoteVolume']) . ',';
-	$str .= "weighted_average=" . format_num($row['weightedAverage']);
-	$str .= ' ' . $row['date'];
-
-	return $str;
-}
-
-
